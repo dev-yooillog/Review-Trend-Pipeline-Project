@@ -28,9 +28,6 @@ jobs:
       - name: 패키지 설치
         run: pip install -r requirements.txt
 
-      - name: Chrome 설치
-        uses: browser-actions/setup-chrome@v1
-
       - name: 이전 DB 복원
         uses: actions/download-artifact@v4
         with:

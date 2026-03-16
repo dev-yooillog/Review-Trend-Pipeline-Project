@@ -11,123 +11,65 @@ NAVER_CLIENT_ID     = os.environ.get("NAVER_CLIENT_ID", "")
 NAVER_CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "")
 
 HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Referer": "https://shopping.naver.com",
-    "Accept-Language": "ko-KR,ko;q=0.9",
+    "User-Agent": "Mozilla/5.0",
+    "X-Naver-Client-Id":     NAVER_CLIENT_ID,
+    "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
 }
 
 SEARCH_TARGETS = [
-    {"category": "공기청정기", "query": "공기청정기"},
-    {"category": "로봇청소기", "query": "로봇청소기"},
-    {"category": "건조기",    "query": "의류건조기"},
+    {"category": "공기청정기", "query": "공기청정기 후기"},
+    {"category": "로봇청소기", "query": "로봇청소기 후기"},
+    {"category": "건조기",    "query": "의류건조기 후기"},
 ]
 
-def search_products(query: str, display: int = 10) -> list[dict]:
-    url = "https://openapi.naver.com/v1/search/shop.json"
-    headers = {
-        **HEADERS,
-        "X-Naver-Client-Id":     NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+def search_blogs(query: str, display: int = 100, start: int = 1) -> list[dict]:
+    url = "https://openapi.naver.com/v1/search/blog.json"
+    params = {
+        "query":   query,
+        "display": display,
+        "start":   start,
+        "sort":    "date",
     }
-    params = {"query": query, "display": display, "sort": "sim"}
-
     try:
-        resp = requests.get(url, headers=headers, params=params, timeout=10)
+        resp = requests.get(url, headers=HEADERS, params=params, timeout=10)
         resp.raise_for_status()
-        items = resp.json().get("items", [])
+        return resp.json().get("items", [])
     except Exception as e:
-        print(f" API 오류 ({query}): {e}")
+        print(f"  API 오류 ({query}): {e}")
         return []
 
-    products = []
-    for item in items:
-        raw_id = item.get("productId", "")
-        pid = hashlib.md5(raw_id.encode()).hexdigest()[:12]
-        products.append({
-            "product_id":     pid,
-            "raw_product_id": raw_id,
-            "brand":          item.get("brand") or "기타",
-            "name":           BeautifulSoup(item["title"], "html.parser").get_text(),
-            "price":          int(item.get("lprice", 0)),
-        })
-    return products
-
-def crawl_reviews(raw_product_id: str, product_id: str, product_name: str, max_pages: int = 5) -> list[dict]:
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
-
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36")
-
-    driver = webdriver.Chrome(options=options)
+def parse_blog_items(items: list[dict], category: str) -> list[dict]:
     reviews = []
+    for item in items:
+        title   = BeautifulSoup(item.get("title", ""),       "html.parser").get_text()
+        desc    = BeautifulSoup(item.get("description", ""), "html.parser").get_text()
+        text    = f"{title} {desc}".strip()
+        link    = item.get("link", "")
+        date    = item.get("postdate", "")
+        blogger = item.get("bloggername", "")
 
-    try:
-        for page in range(1, max_pages + 1):
-            url = (
-                f"https://search.shopping.naver.com/product/{raw_product_id}/review"
-                f"?page={page}&sort=recent"
-            )
-            driver.get(url)
-            time.sleep(random.uniform(2.0, 3.5))
+        if not text:
+            continue
 
-            # 디버그: 페이지 소스 확인
-            print(f"  URL: {url}")
-            print(f"  페이지 소스 앞 2000자:")
-            print(driver.page_source[:2000])
-
-            soup = BeautifulSoup(driver.page_source, "html.parser")
-            review_els = soup.select("li.ReviewItem__reviewItem___1w7g5")
-
-            if not review_els:
-                print(f"  {product_name} - {page}p 리뷰 없음, 중단")
-                break
-
-            for el in review_els:
-                star_el = el.select_one(".ReviewItem__grade___2A9a5")
-                text_el = el.select_one(".ReviewItem__reviewContent___3v5AA")
-                date_el = el.select_one(".ReviewItem__date___1Yoqy")
-                help_el = el.select_one(".ReviewItem__helpfulCount___2VnQQ")
-
-                text = text_el.get_text(strip=True) if text_el else ""
-                if not text:
-                    continue
-
-                date_str = date_el.get_text(strip=True) if date_el else ""
-                rid = hashlib.md5(f"{product_id}{text}{date_str}".encode()).hexdigest()[:16]
-
-                reviews.append({
-                    "review_id":   rid,
-                    "product_id":  product_id,
-                    "star_rating": int(star_el.get_text(strip=True)) if star_el else 0,
-                    "review_text": text,
-                    "review_date": date_str,
-                    "helpful_cnt": int(help_el.get_text(strip=True).replace(",", "")) if help_el else 0,
-                })
-
-            print(f"  {product_name} - {page}p: {len(review_els)}건")
-
-    finally:
-        driver.quit()
-
+        rid = hashlib.md5(link.encode()).hexdigest()[:16]
+        reviews.append({
+            "review_id":   rid,
+            "product_id":  category,
+            "star_rating": 0,
+            "review_text": text,
+            "review_date": f"{date[:4]}-{date[4:6]}-{date[6:]}",
+            "helpful_cnt": 0,
+            "blogger":     blogger,
+        })
     return reviews
 
-def save_products(products: list[dict], category: str):
+def save_category_as_product(category: str):
     conn = sqlite3.connect(DB_PATH)
     cur  = conn.cursor()
-    for p in products:
-        cur.execute("""
-            INSERT OR IGNORE INTO products (product_id, brand, name, category, price)
-            VALUES (:product_id, :brand, :name, :category, :price)
-        """, {**p, "category": category})
+    cur.execute("""
+        INSERT OR IGNORE INTO products (product_id, brand, name, category, price)
+        VALUES (?, ?, ?, ?, ?)
+    """, (category, "블로그", category, category, 0))
     conn.commit()
     conn.close()
 
@@ -146,7 +88,7 @@ def save_reviews(reviews: list[dict]) -> int:
             if cur.rowcount:
                 new_count += 1
         except Exception as e:
-            print(f"  오류: {e}")
+            print(f"  저장 오류: {e}")
     conn.commit()
     conn.close()
     return new_count
@@ -158,23 +100,24 @@ def main():
     for target in SEARCH_TARGETS:
         category = target["category"]
         query    = target["query"]
+        print(f"\n  [{category}] 블로그 수집 중...")
 
-        products = search_products(query, display=5)
-        if not products:
-            print(f"  제품을 찾지 못함.")
-            continue
+        save_category_as_product(category)
 
-        save_products(products, category)
-        print(f"  제품 {len(products)}개 저장")
+        all_items = []
+        for start in range(1, 201, 100):   # 100건씩 2회 = 최대 200건
+            items = search_blogs(query, display=100, start=start)
+            if not items:
+                break
+            all_items.extend(items)
+            time.sleep(random.uniform(0.5, 1.0))
 
-        for p in products:
-            print(f"\n  {p['name'][:30]}... 리뷰 수집 중")
-            reviews = crawl_reviews(p["raw_product_id"], p["product_id"], p["name"], max_pages=3)
-            new_cnt = save_reviews(reviews)
-            total_new += new_cnt
-            print(f"  신규 {new_cnt}건 저장 (전체 {len(reviews)}건 수집)")
+        reviews = parse_blog_items(all_items, category)
+        new_cnt = save_reviews(reviews)
+        total_new += new_cnt
+        print(f"  수집 {len(reviews)}건 / 신규 저장 {new_cnt}건")
 
-    print(f"\n완료! 총 신규 리뷰 {total_new}건 저장")
+    print(f"\n완료! 총 신규 {total_new}건 저장")
     return total_new
 
 if __name__ == "__main__":
