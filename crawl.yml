@@ -1,0 +1,71 @@
+# .github/workflows/crawl.yml
+# 매주 월요일 오전 9시(KST) 자동 실행
+# 수동 실행: Actions 탭 → "Run workflow" 버튼
+
+name: 주간 리뷰 수집 파이프라인
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'   # UTC 00:00 = KST 09:00, 매주 월요일
+  workflow_dispatch:        # 수동 실행 허용 (테스트용)
+
+jobs:
+  crawl-and-analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. 코드 체크아웃 ──────────────────────────────────────────
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      # ── 2. Python 설정 ────────────────────────────────────────────
+      - name: Python 3.11 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ── 3. Java 설치 (konlpy 의존성) ──────────────────────────────
+      - name: Java 설치 (konlpy용)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # ── 4. 패키지 설치 ────────────────────────────────────────────
+      - name: 패키지 설치
+        run: pip install -r requirements.txt
+
+      # ── 5. 이전 DB 복원 (artifacts에서) ──────────────────────────
+      - name: 이전 DB 복원
+        uses: actions/download-artifact@v4
+        with:
+          name: reviews-db
+          path: .
+        continue-on-error: true   # 첫 실행 시 artifact 없어도 OK
+
+      # ── 6. 파이프라인 실행 ────────────────────────────────────────
+      - name: 파이프라인 실행
+        env:
+          NAVER_CLIENT_ID:     ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+          SLACK_WEBHOOK_URL:   ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python main.py
+
+      # ── 7. Tableau CSV 업로드 (아티팩트 저장) ────────────────────
+      - name: CSV 아티팩트 저장
+        uses: actions/upload-artifact@v4
+        with:
+          name: tableau-csv
+          path: |
+            tableau_reviews.csv
+            tableau_keywords.csv
+          retention-days: 30
+
+      # ── 8. DB 저장 (다음 실행에 이어쓰기용) ──────────────────────
+      - name: DB 아티팩트 저장
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviews-db
+          path: reviews.db
+          retention-days: 90
