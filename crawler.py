@@ -45,16 +45,19 @@ def search_products(query: str, display: int = 10) -> list[dict]:
 
     products = []
     for item in items:
-        pid = hashlib.md5(item.get("productId", item["title"]).encode()).hexdigest()[:12]
+        # DB용 pk는 해시, URL용 원본 ID는 따로 저장
+        raw_id = item.get("productId", "")
+        pid = hashlib.md5(raw_id.encode()).hexdigest()[:12]
         products.append({
-            "product_id": pid,
-            "brand":      item.get("brand") or "기타",
-            "name":       BeautifulSoup(item["title"], "html.parser").get_text(),
-            "price":      int(item.get("lprice", 0)),
+            "product_id":     pid,
+            "raw_product_id": raw_id,   # 리뷰 URL에 사용
+            "brand":          item.get("brand") or "기타",
+            "name":           BeautifulSoup(item["title"], "html.parser").get_text(),
+            "price":          int(item.get("lprice", 0)),
         })
     return products
 
-def crawl_reviews(product_id: str, product_name: str, max_pages: int = 5) -> list[dict]:
+def crawl_reviews(raw_product_id: str, product_id: str, product_name: str, max_pages: int = 5) -> list[dict]:
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
 
@@ -70,8 +73,9 @@ def crawl_reviews(product_id: str, product_name: str, max_pages: int = 5) -> lis
 
     try:
         for page in range(1, max_pages + 1):
+            # 원본 ID로 URL 구성
             url = (
-                f"https://search.shopping.naver.com/product/{product_id}/review"
+                f"https://search.shopping.naver.com/product/{raw_product_id}/review"
                 f"?page={page}&sort=recent"
             )
             driver.get(url)
@@ -162,12 +166,12 @@ def main():
 
         for p in products:
             print(f"\n  {p['name'][:30]}... 리뷰 수집 중")
-            reviews = crawl_reviews(p["product_id"], p["name"], max_pages=3)
+            reviews = crawl_reviews(p["raw_product_id"], p["product_id"], p["name"], max_pages=3)
             new_cnt = save_reviews(reviews)
             total_new += new_cnt
             print(f"  신규 {new_cnt}건 저장 (전체 {len(reviews)}건 수집)")
 
-    print(f"\n 총 신규 리뷰 {total_new}건 저장")
+    print(f"\n완료! 총 신규 리뷰 {total_new}건 저장")
     return total_new
 
 if __name__ == "__main__":
