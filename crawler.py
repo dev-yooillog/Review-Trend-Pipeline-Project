@@ -45,12 +45,11 @@ def search_products(query: str, display: int = 10) -> list[dict]:
 
     products = []
     for item in items:
-        # DB용 pk는 해시, URL용 원본 ID는 따로 저장
         raw_id = item.get("productId", "")
         pid = hashlib.md5(raw_id.encode()).hexdigest()[:12]
         products.append({
             "product_id":     pid,
-            "raw_product_id": raw_id,   # 리뷰 URL에 사용
+            "raw_product_id": raw_id,
             "brand":          item.get("brand") or "기타",
             "name":           BeautifulSoup(item["title"], "html.parser").get_text(),
             "price":          int(item.get("lprice", 0)),
@@ -73,13 +72,17 @@ def crawl_reviews(raw_product_id: str, product_id: str, product_name: str, max_p
 
     try:
         for page in range(1, max_pages + 1):
-            # 원본 ID로 URL 구성
             url = (
                 f"https://search.shopping.naver.com/product/{raw_product_id}/review"
                 f"?page={page}&sort=recent"
             )
             driver.get(url)
             time.sleep(random.uniform(2.0, 3.5))
+
+            # 디버그: 페이지 소스 확인
+            print(f"  URL: {url}")
+            print(f"  페이지 소스 앞 2000자:")
+            print(driver.page_source[:2000])
 
             soup = BeautifulSoup(driver.page_source, "html.parser")
             review_els = soup.select("li.ReviewItem__reviewItem___1w7g5")
