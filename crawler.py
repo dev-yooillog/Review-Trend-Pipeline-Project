@@ -55,27 +55,40 @@ def search_products(query: str, display: int = 10) -> list[dict]:
     return products
 
 def crawl_reviews(product_id: str, product_name: str, max_pages: int = 5) -> list[dict]:
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36")
+
+    driver = webdriver.Chrome(options=options)
     reviews = []
 
-    for page in range(1, max_pages + 1):
-        url = (
-            f"https://search.shopping.naver.com/product/{product_id}/review"
-            f"?page={page}&sort=recent"
-        )
-        try:
-            resp = requests.get(url, headers=HEADERS, timeout=10)
-            resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, "html.parser")
+    try:
+        for page in range(1, max_pages + 1):
+            url = (
+                f"https://search.shopping.naver.com/product/{product_id}/review"
+                f"?page={page}&sort=recent"
+            )
+            driver.get(url)
+            time.sleep(random.uniform(2.0, 3.5))
+
+            soup = BeautifulSoup(driver.page_source, "html.parser")
             review_els = soup.select("li.ReviewItem__reviewItem___1w7g5")
+
             if not review_els:
-                print(f"  {product_name} - {page}페이지 리뷰 없음, 중단")
+                print(f"  {product_name} - {page}p 리뷰 없음, 중단")
                 break
 
             for el in review_els:
-                star_el  = el.select_one(".ReviewItem__grade___2A9a5")
-                text_el  = el.select_one(".ReviewItem__reviewContent___3v5AA")
-                date_el  = el.select_one(".ReviewItem__date___1Yoqy")
-                help_el  = el.select_one(".ReviewItem__helpfulCount___2VnQQ")
+                star_el = el.select_one(".ReviewItem__grade___2A9a5")
+                text_el = el.select_one(".ReviewItem__reviewContent___3v5AA")
+                date_el = el.select_one(".ReviewItem__date___1Yoqy")
+                help_el = el.select_one(".ReviewItem__helpfulCount___2VnQQ")
 
                 text = text_el.get_text(strip=True) if text_el else ""
                 if not text:
@@ -93,12 +106,10 @@ def crawl_reviews(product_id: str, product_name: str, max_pages: int = 5) -> lis
                     "helpful_cnt": int(help_el.get_text(strip=True).replace(",", "")) if help_el else 0,
                 })
 
-            print(f" {product_name} - {page}p: {len(review_els)}건")
-            time.sleep(random.uniform(1.0, 2.5))
+            print(f"  {product_name} - {page}p: {len(review_els)}건")
 
-        except Exception as e:
-            print(f"  {product_name} {page}p 오류: {e}")
-            break
+    finally:
+        driver.quit()
 
     return reviews
 
@@ -112,7 +123,6 @@ def save_products(products: list[dict], category: str):
         """, {**p, "category": category})
     conn.commit()
     conn.close()
-
 
 def save_reviews(reviews: list[dict]) -> int:
     conn = sqlite3.connect(DB_PATH)
@@ -134,8 +144,6 @@ def save_reviews(reviews: list[dict]) -> int:
     conn.close()
     return new_count
 
-
-# ── 메인 ─────────────────────────────────────────────────────────────
 def main():
     init_db()
     total_new = 0
@@ -154,12 +162,12 @@ def main():
 
         for p in products:
             print(f"\n  {p['name'][:30]}... 리뷰 수집 중")
-            reviews  = crawl_reviews(p["product_id"], p["name"], max_pages=3)
-            new_cnt  = save_reviews(reviews)
+            reviews = crawl_reviews(p["product_id"], p["name"], max_pages=3)
+            new_cnt = save_reviews(reviews)
             total_new += new_cnt
-            print(f"  💾 신규 {new_cnt}건 저장 (전체 {len(reviews)}건 수집)")
+            print(f"  신규 {new_cnt}건 저장 (전체 {len(reviews)}건 수집)")
 
-    print(f"\n완료! 총 신규 리뷰 {total_new}건 저장")
+    print(f"\n 총 신규 리뷰 {total_new}건 저장")
     return total_new
 
 if __name__ == "__main__":
