@@ -1,10 +1,3 @@
-"""
-crawler.py — 네이버쇼핑 리뷰 크롤러
-- 네이버 쇼핑 검색 API로 제품 목록 수집
-- BeautifulSoup으로 리뷰 페이지 크롤링
-- SQLite DB에 저장 (중복 자동 스킵)
-"""
-
 import os
 import time
 import random
@@ -14,7 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 from db_setup import init_db, DB_PATH
 
-# ── 환경변수에서 API 키 읽기 (GitHub Secrets로 관리) ─────────────────
+# ── API 키 읽기 (GitHub Secrets로 관리) ─────────────────
 NAVER_CLIENT_ID     = os.environ.get("NAVER_CLIENT_ID", "")
 NAVER_CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "")
 
@@ -28,17 +21,13 @@ HEADERS = {
     "Accept-Language": "ko-KR,ko;q=0.9",
 }
 
-# 수집 대상 카테고리
 SEARCH_TARGETS = [
     {"category": "공기청정기", "query": "공기청정기"},
     {"category": "로봇청소기", "query": "로봇청소기"},
     {"category": "건조기",    "query": "의류건조기"},
 ]
 
-
-# ── 제품 검색 ─────────────────────────────────────────────────────────
 def search_products(query: str, display: int = 10) -> list[dict]:
-    """네이버 쇼핑 API로 제품 목록 조회"""
     url = "https://openapi.naver.com/v1/search/shop.json"
     headers = {
         **HEADERS,
@@ -52,7 +41,7 @@ def search_products(query: str, display: int = 10) -> list[dict]:
         resp.raise_for_status()
         items = resp.json().get("items", [])
     except Exception as e:
-        print(f"  ⚠️  API 오류 ({query}): {e}")
+        print(f" API 오류 ({query}): {e}")
         return []
 
     products = []
@@ -69,7 +58,6 @@ def search_products(query: str, display: int = 10) -> list[dict]:
 
 # ── 리뷰 크롤링 ───────────────────────────────────────────────────────
 def crawl_reviews(product_id: str, product_name: str, max_pages: int = 5) -> list[dict]:
-    """네이버쇼핑 제품 리뷰 크롤링"""
     reviews = []
 
     for page in range(1, max_pages + 1):
@@ -81,8 +69,6 @@ def crawl_reviews(product_id: str, product_name: str, max_pages: int = 5) -> lis
             resp = requests.get(url, headers=HEADERS, timeout=10)
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, "html.parser")
-
-            # 셀렉터는 네이버 UI 변경 시 업데이트 필요
             review_els = soup.select("li.ReviewItem__reviewItem___1w7g5")
             if not review_els:
                 print(f"  ⏹  {product_name} - {page}페이지 리뷰 없음, 중단")
@@ -119,8 +105,6 @@ def crawl_reviews(product_id: str, product_name: str, max_pages: int = 5) -> lis
 
     return reviews
 
-
-# ── DB 저장 ───────────────────────────────────────────────────────────
 def save_products(products: list[dict], category: str):
     conn = sqlite3.connect(DB_PATH)
     cur  = conn.cursor()
@@ -134,7 +118,6 @@ def save_products(products: list[dict], category: str):
 
 
 def save_reviews(reviews: list[dict]) -> int:
-    """중복 스킵, 신규 저장 건수 반환"""
     conn = sqlite3.connect(DB_PATH)
     cur  = conn.cursor()
     new_count = 0
@@ -163,26 +146,24 @@ def main():
     for target in SEARCH_TARGETS:
         category = target["category"]
         query    = target["query"]
-        print(f"\n🔍 [{category}] 검색 중...")
 
         products = search_products(query, display=5)
         if not products:
-            print(f"  ❌ 제품을 찾지 못했습니다.")
+            print(f"  제품을 찾지 못함.")
             continue
 
         save_products(products, category)
-        print(f"  ✅ 제품 {len(products)}개 저장")
+        print(f"  제품 {len(products)}개 저장")
 
         for p in products:
-            print(f"\n  📦 {p['name'][:30]}... 리뷰 수집 중")
+            print(f"\n  {p['name'][:30]}... 리뷰 수집 중")
             reviews  = crawl_reviews(p["product_id"], p["name"], max_pages=3)
             new_cnt  = save_reviews(reviews)
             total_new += new_cnt
             print(f"  💾 신규 {new_cnt}건 저장 (전체 {len(reviews)}건 수집)")
 
-    print(f"\n🎉 완료! 총 신규 리뷰 {total_new}건 저장")
+    print(f"\n완료! 총 신규 리뷰 {total_new}건 저장")
     return total_new
-
 
 if __name__ == "__main__":
     main()

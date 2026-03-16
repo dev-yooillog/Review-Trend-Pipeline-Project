@@ -1,10 +1,3 @@
-"""
-sentiment.py — 리뷰 감성 분석 + 키워드 추출
-- VADER 기반 한국어 규칙 감성 분류 (별점 보조)
-- konlpy Okt로 명사 키워드 추출
-- 미분류 리뷰만 처리해서 재실행 가능
-"""
-
 import sqlite3
 import re
 from collections import Counter
@@ -22,9 +15,8 @@ NEGATIVE_WORDS = {
     "오류", "작동안", "안됩니", "아쉽", "별로", "그냥저냥",
 }
 
-
+# 규칙 기반 감성 분류
 def simple_sentiment(text: str, star: int) -> str:
-    """규칙 기반 감성 분류 (별점 우선, 키워드 보조)"""
     if star >= 4:
         return "positive"
     if star <= 2:
@@ -42,10 +34,6 @@ def simple_sentiment(text: str, star: int) -> str:
 
 
 def extract_keywords(text: str) -> list[str]:
-    """
-    konlpy 없이도 동작하는 간이 명사 추출
-    (실제 프로젝트에선 konlpy Okt 권장)
-    """
     try:
         from konlpy.tag import Okt
         okt = Okt()
@@ -70,7 +58,7 @@ def run_sentiment():
         WHERE sentiment IS NULL
     """)
     rows = cur.fetchall()
-    print(f"🔍 미분류 리뷰 {len(rows)}건 처리 시작")
+    print(f"미분류 리뷰 {len(rows)}건 처리 시작")
 
     keyword_rows = []
     updated = 0
@@ -111,12 +99,11 @@ def run_sentiment():
     summary = cur2.fetchall()
     conn2.close()
 
-    print("\n📊 감성 분석 결과:")
+    print("\n감성 분석 결과:")
     for sentiment, cnt in summary:
         print(f"  {sentiment:10s}: {cnt:,}건")
-    print(f"\n✅ 완료: {updated}건 분류, {len(keyword_rows)}개 키워드 저장")
+    print(f"\n완료: {updated}건 분류, {len(keyword_rows)}개 키워드 저장")
     return updated
-
 
 if __name__ == "__main__":
     run_sentiment()

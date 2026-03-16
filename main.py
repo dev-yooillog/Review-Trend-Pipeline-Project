@@ -12,7 +12,7 @@ from notify    import get_summary, send_slack
 
 def main():
     print("=" * 50)
-    print("🚀 리뷰 수집 파이프라인 시작")
+    print("리뷰 수집 파이프라인 시작")
     print("=" * 50)
 
     # 1. DB 초기화 (테이블 없으면 생성)
@@ -38,7 +38,7 @@ def main():
     send_slack(summary)
 
     print("\n" + "=" * 50)
-    print("✅ 파이프라인 완료!")
+    print("파이프라인 완료!")
     print("=" * 50)
 
 

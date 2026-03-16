@@ -39,7 +39,7 @@ def init_db():
     """)
     conn.commit()
     conn.close()
-    print("✅ DB 초기화 완료")
+    print("DB 초기화 완료")
 
 if __name__ == "__main__":
     init_db()

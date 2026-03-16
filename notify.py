@@ -1,8 +1,3 @@
-"""
-notify.py — Slack 웹훅 알림
-GitHub Actions 마지막 단계에서 실행
-"""
-
 import os
 import json
 import sqlite3
@@ -53,7 +48,7 @@ def get_summary() -> dict:
 
 def send_slack(summary: dict):
     if not SLACK_WEBHOOK:
-        print("⚠️  SLACK_WEBHOOK_URL 환경변수가 없습니다.")
+        print("SLACK_WEBHOOK_URL 환경변수가 없습니다.")
         return
 
     pos = summary["sentiments"].get("positive", 0)
@@ -61,7 +56,7 @@ def send_slack(summary: dict):
     neu = summary["sentiments"].get("neutral",  0)
 
     text = (
-        f"*📊 주간 리뷰 수집 완료*\n"
+        f"*주간 리뷰 수집 완료*\n"
         f"• 이번 주 신규: *{summary['today_new']:,}건*\n"
         f"• 누적 전체:    *{summary['total']:,}건*\n"
         f"• 감성 비율: 긍정 {pos} / 부정 {neg} / 중립 {neu}\n"
@@ -75,10 +70,9 @@ def send_slack(summary: dict):
         timeout=10,
     )
     if resp.status_code == 200:
-        print("✅ Slack 알림 전송 완료")
+        print("Slack 알림 전송 완료")
     else:
-        print(f"⚠️  Slack 전송 실패: {resp.status_code}")
-
+        print(f"Slack 전송 실패: {resp.status_code}")
 
 if __name__ == "__main__":
     summary = get_summary()
