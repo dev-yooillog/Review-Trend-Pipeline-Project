@@ -17,12 +17,6 @@ NEGATIVE_WORDS = {
 
 # 규칙 기반 감성 분류
 def simple_sentiment(text: str, star: int) -> str:
-    if star >= 4:
-        return "positive"
-    if star <= 2:
-        return "negative"
-
-    # 별점 3점: 키워드로 판별
     pos = sum(1 for w in POSITIVE_WORDS if w in text)
     neg = sum(1 for w in NEGATIVE_WORDS if w in text)
 
@@ -41,7 +35,6 @@ def extract_keywords(text: str) -> list[str]:
         return [n for n in nouns if len(n) >= 2]
 
     except ImportError:
-        # konlpy 미설치 시 — 2글자 이상 한글 토큰 추출 (간이)
         tokens = re.findall(r"[가-힣]{2,5}", text)
         stopwords = {"그리고", "하지만", "그래서", "이게", "저도", "정말", "너무", "진짜"}
         return [t for t in tokens if t not in stopwords]
