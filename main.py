@@ -1,8 +1,3 @@
-"""
-main.py — 전체 파이프라인 순서대로 실행
-GitHub Actions에서 호출하는 진입점
-"""
-
 from db_setup  import init_db
 from crawler   import main as run_crawler
 from sentiment import run_sentiment
@@ -11,10 +6,6 @@ from notify    import get_summary, send_slack
 
 
 def main():
-    print("=" * 50)
-    print("리뷰 수집 파이프라인 시작")
-    print("=" * 50)
-
     # 1. DB 초기화 (테이블 없으면 생성)
     print("\n[1/5] DB 초기화")
     init_db()

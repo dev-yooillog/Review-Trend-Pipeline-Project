@@ -1,8 +1,3 @@
-"""
-analysis.py — SQL 기반 애드혹 분석 쿼리 모음
-Tableau 연결 전 데이터 검증 및 인사이트 추출용
-"""
-
 import sqlite3
 import pandas as pd
 from db_setup import DB_PATH
@@ -27,7 +22,7 @@ def avg_star_by_category():
         ORDER BY p.category, year_month
     """
     df = pd.read_sql(query, get_conn())
-    print("📊 카테고리별 평균 별점 트렌드")
+    print("카테고리별 평균 별점 트렌드")
     print(df.to_string(index=False))
     return df
 
@@ -47,7 +42,7 @@ def sentiment_by_brand():
         ORDER BY p.brand, r.sentiment
     """
     df = pd.read_sql(query, get_conn())
-    print("\n📊 브랜드별 감성 비율")
+    print("\n브랜드별 감성 비율")
     print(df.to_string(index=False))
     return df
 
@@ -67,7 +62,7 @@ def top_negative_keywords(top_n: int = 20):
         LIMIT :top_n
     """
     df = pd.read_sql(query, get_conn(), params={"top_n": top_n})
-    print(f"\n📊 부정 리뷰 상위 키워드 Top {top_n}")
+    print(f"\n부정 리뷰 상위 키워드 Top {top_n}")
     print(df.to_string(index=False))
     return df
 
@@ -85,7 +80,7 @@ def weekly_collection_summary():
         LIMIT 8
     """
     df = pd.read_sql(query, get_conn())
-    print("\n📊 주간 수집량 요약")
+    print("\n주간 수집량 요약")
     print(df.to_string(index=False))
     return df
 
@@ -123,11 +118,11 @@ def detect_issue_spike():
 
     conn.close()
     if results:
-        print("\n🚨 이슈 키워드 급등 감지!")
+        print("\n이슈 키워드 급등 발견함")
         for r in results:
             print(f"  [{r['keyword']}] {r['prev']} → {r['latest']} ({r['increase']})")
     else:
-        print("\n✅ 이슈 급등 없음")
+        print("\n이슈 급등 없음")
 
     return results
 
@@ -157,7 +152,7 @@ def export_for_tableau():
     for filename, query in queries.items():
         df = pd.read_sql(query, conn)
         df.to_csv(filename, index=False, encoding="utf-8-sig")
-        print(f"✅ {filename} 저장 ({len(df):,}행)")
+        print(f"{filename} 저장 ({len(df):,}행)")
     conn.close()
 
 

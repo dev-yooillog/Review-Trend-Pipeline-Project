@@ -71,7 +71,7 @@ def crawl_reviews(product_id: str, product_name: str, max_pages: int = 5) -> lis
             soup = BeautifulSoup(resp.text, "html.parser")
             review_els = soup.select("li.ReviewItem__reviewItem___1w7g5")
             if not review_els:
-                print(f"  ⏹  {product_name} - {page}페이지 리뷰 없음, 중단")
+                print(f"  {product_name} - {page}페이지 리뷰 없음, 중단")
                 break
 
             for el in review_els:
@@ -96,11 +96,11 @@ def crawl_reviews(product_id: str, product_name: str, max_pages: int = 5) -> lis
                     "helpful_cnt": int(help_el.get_text(strip=True).replace(",", "")) if help_el else 0,
                 })
 
-            print(f"  📄 {product_name} - {page}p: {len(review_els)}건")
+            print(f" {product_name} - {page}p: {len(review_els)}건")
             time.sleep(random.uniform(1.0, 2.5))
 
         except Exception as e:
-            print(f"  ⚠️  {product_name} {page}p 오류: {e}")
+            print(f"  {product_name} {page}p 오류: {e}")
             break
 
     return reviews
@@ -132,7 +132,7 @@ def save_reviews(reviews: list[dict]) -> int:
             if cur.rowcount:
                 new_count += 1
         except Exception as e:
-            print(f"  ⚠️  저장 오류: {e}")
+            print(f"  오류: {e}")
     conn.commit()
     conn.close()
     return new_count
