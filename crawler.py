@@ -7,7 +7,6 @@ import requests
 from bs4 import BeautifulSoup
 from db_setup import init_db, DB_PATH
 
-# ── API 키 읽기 (GitHub Secrets로 관리) ─────────────────
 NAVER_CLIENT_ID     = os.environ.get("NAVER_CLIENT_ID", "")
 NAVER_CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "")
 
@@ -34,7 +33,7 @@ def search_products(query: str, display: int = 10) -> list[dict]:
         "X-Naver-Client-Id":     NAVER_CLIENT_ID,
         "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
     }
-    params = {"query": query, "display": display, "sort": "review"}
+    params = {"query": query, "display": display, "sort": "sim"}
 
     try:
         resp = requests.get(url, headers=headers, params=params, timeout=10)
@@ -55,8 +54,6 @@ def search_products(query: str, display: int = 10) -> list[dict]:
         })
     return products
 
-
-# ── 리뷰 크롤링 ───────────────────────────────────────────────────────
 def crawl_reviews(product_id: str, product_name: str, max_pages: int = 5) -> list[dict]:
     reviews = []
 
